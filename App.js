@@ -1,21 +1,38 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, ActivityIndicator, Image, Dimensions, Alert, FlatList } from 'react-native';
+// ============================================
+// IMPORTS
+// ============================================
+
+// React & React Native
 import { useEffect, useState } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, ActivityIndicator, Image, Dimensions, Alert, FlatList } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+
+// Firebase
 import { db } from './firebase';
 import { collection, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 
 const { height } = Dimensions.get('window');
 const TMDB_KEY = "b0e0004308eb345b7717b678714ec34b";
 
+// ============================================
+// MAIN APP
+// ============================================
+
 export default function App() {
+
+  // ============================================
+  // STATE - Data we need to remember
+  // ============================================
   const [movies, setMovies] = useState([]);
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState('browse'); // 'browse' or 'likes'
+  const [viewMode, setViewMode] = useState('browse');
   const [likedMovies, setLikedMovies] = useState([]);
   const [loadingLikes, setLoadingLikes] = useState(false);
 
-  // Fetch Movies from TMDB
+  // ============================================
+  // API - Get trending movies when app starts
+  // ============================================
   useEffect(() => {
     fetch(`https://api.themoviedb.org/3/trending/movie/day?api_key=${TMDB_KEY}`)
       .then(res => res.json())
@@ -32,7 +49,9 @@ export default function App() {
       .catch(err => console.error(err));
   }, []);
 
-  // Fetch Liked Movies from Firebase
+  // ============================================
+  // DATABASE - Load liked movies from Firebase
+  // ============================================
   const fetchLikedMovies = async () => {
     setLoadingLikes(true);
     try {
@@ -41,7 +60,6 @@ export default function App() {
         id: doc.id,
         ...doc.data()
       }));
-      // Sort by timestamp on client side (safer)
       likes.sort((a, b) => {
         const timeA = a.timestamp?.toMillis() || 0;
         const timeB = b.timestamp?.toMillis() || 0;
@@ -55,13 +73,14 @@ export default function App() {
     setLoadingLikes(false);
   };
 
-  // Fetch liked movies when switching to likes view
+  // Reload likes when switching to likes view
   useEffect(() => {
     if (viewMode === 'likes') {
       fetchLikedMovies();
     }
   }, [viewMode]);
 
+  // Save a liked movie to Firebase
   const handleLike = async () => {
     if (!movies[index]) return;
     
@@ -77,11 +96,16 @@ export default function App() {
     }
   };
 
+  // ============================================
+  // UI - Show loading spinner while movies load
+  // ============================================
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#e50914"/></View>;
 
   const movie = movies[index];
 
-  // Render Liked Movies List
+  // ============================================
+  // UI - Liked Movies Screen
+  // ============================================
   if (viewMode === 'likes') {
     return (
       <View style={styles.container}>
@@ -125,7 +149,9 @@ export default function App() {
     );
   }
 
-  // Render Browse Movies View
+  // ============================================
+  // UI - Browse Movies Screen (Parallax Layout)
+  // ============================================
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
@@ -159,6 +185,10 @@ export default function App() {
     </View>
   );
 }
+
+// ============================================
+// STYLES - Netflix-style dark theme
+// ============================================
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },

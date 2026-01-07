@@ -1,11 +1,12 @@
-// Import the functions you need from the SDKs
+// ============================================
+// FIREBASE CONFIGURATION
+// ============================================
+
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
-// Note: Analytics is not typically used in React Native/Expo
-// If you need it, use @react-native-firebase/analytics instead
 
-// Your web app's Firebase configuration
+// Our Firebase project credentials
 const firebaseConfig = {
   apiKey: "AIzaSyCpHtoGVMxKUJEKBvChve0sAWR9sGYPK6s",
   authDomain: "cinematch-c02c1.firebaseapp.com",
@@ -16,10 +17,10 @@ const firebaseConfig = {
   measurementId: "G-9C4PJS31RQ"
 };
 
-// Initialize Firebase
+// Connect to Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore
+// Connect to our database
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 export default app;
