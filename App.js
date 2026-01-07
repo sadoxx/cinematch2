@@ -1,31 +1,18 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, ActivityIndicator, Image, Dimensions, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, ActivityIndicator, Image, Dimensions, Alert } from 'react-native';
 import { useEffect, useState } from 'react';
-import { db, auth } from './firebase';
-import { collection, addDoc, serverTimestamp, onSnapshot, query, where } from 'firebase/firestore';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
+import { db } from './firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 const { height } = Dimensions.get('window');
 const TMDB_KEY = "b0e0004308eb345b7717b678714ec34b";
 
 export default function App() {
   const [movies, setMovies] = useState([]);
-  const [user, setUser] = useState(null);
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-  
-  // Auth Form State
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [authLoading, setAuthLoading] = useState(false);
 
-  // 1. Handle Auth Session
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
-    return () => unsub();
-  }, []);
-
-  // 2. Fetch Movies
+  // Fetch Movies from TMDB
   useEffect(() => {
     fetch(`https://api.themoviedb.org/3/trending/movie/day?api_key=${TMDB_KEY}`)
       .then(res => res.json())
@@ -42,25 +29,6 @@ export default function App() {
       .catch(err => console.error(err));
   }, []);
 
-  // 3. Listen for Matches
-  useEffect(() => {
-    if (!user || !movies[index]) return;
-
-    const movieId = movies[index].id;
-    const q = query(collection(db, "liked_movies"), where("movieId", "==", movieId));
-    
-    const unsub = onSnapshot(q, (snapshot) => {
-      const userIds = snapshot.docs.map(doc => doc.data().userId);
-      const uniqueUsers = new Set(userIds);
-      
-      if (uniqueUsers.size >= 2 && uniqueUsers.has(user.uid)) {
-        Alert.alert("It's a Match!", `You both liked ${movies[index].title}`);
-      }
-    });
-
-    return () => unsub();
-  }, [user, index, movies]);
-
   const handleLike = async () => {
     if (!movies[index]) return;
     
@@ -68,7 +36,6 @@ export default function App() {
       await addDoc(collection(db, "liked_movies"), {
         movieId: movies[index].id,
         movieTitle: movies[index].title,
-        userId: user.uid,
         timestamp: serverTimestamp()
       });
       setIndex((prev) => (prev + 1) % movies.length);
@@ -76,58 +43,6 @@ export default function App() {
       Alert.alert("Error", err.message);
     }
   };
-
-  const handleAuth = async (isLogin) => {
-    setAuthLoading(true);
-    try {
-      if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
-      } else {
-        await createUserWithEmailAndPassword(auth, email, password);
-      }
-    } catch (err) {
-      Alert.alert("Auth Error", err.message);
-    }
-    setAuthLoading(false);
-  };
-
-  if (!user) {
-    return (
-      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <StatusBar style="light" />
-        <View style={styles.center}>
-          <Text style={styles.title}>CineMatch 🎬</Text>
-          <TextInput 
-            style={styles.input} 
-            placeholder="Email" 
-            placeholderTextColor="#666" 
-            value={email} 
-            onChangeText={setEmail} 
-            autoCapitalize="none"
-          />
-          <TextInput 
-            style={styles.input} 
-            placeholder="Password" 
-            placeholderTextColor="#666" 
-            value={password} 
-            onChangeText={setPassword} 
-            secureTextEntry 
-          />
-          
-          {authLoading ? <ActivityIndicator color="#e50914" /> : (
-            <View style={{width: '100%', gap: 10}}>
-              <TouchableOpacity style={styles.btnMain} onPress={() => handleAuth(true)}>
-                <Text style={styles.btnText}>Log In</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.btnSec} onPress={() => handleAuth(false)}>
-                <Text style={styles.btnText}>Sign Up</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      </KeyboardAvoidingView>
-    );
-  }
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#e50914"/></View>;
 
@@ -137,8 +52,7 @@ export default function App() {
     <View style={styles.container}>
       <StatusBar style="light" />
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>CineMatch</Text>
-        <TouchableOpacity onPress={() => signOut(auth)}><Text style={styles.logout}>Logout</Text></TouchableOpacity>
+        <Text style={styles.headerTitle}>CineMatch 🎬</Text>
       </View>
 
       <View style={styles.posterWrapper}>
@@ -165,14 +79,8 @@ export default function App() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  title: { fontSize: 40, fontWeight: 'bold', color: '#e50914', marginBottom: 40 },
-  input: { width: '100%', backgroundColor: '#222', color: '#fff', padding: 15, borderRadius: 8, marginBottom: 15, fontSize: 16 },
-  btnMain: { backgroundColor: '#e50914', padding: 15, borderRadius: 8, alignItems: 'center' },
-  btnSec: { backgroundColor: '#333', padding: 15, borderRadius: 8, alignItems: 'center' },
-  btnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, paddingTop: 50 },
-  headerTitle: { color: '#e50914', fontSize: 24, fontWeight: 'bold' },
-  logout: { color: '#fff', fontSize: 16 },
+  header: { padding: 20, paddingTop: 50, alignItems: 'center' },
+  headerTitle: { color: '#e50914', fontSize: 28, fontWeight: 'bold' },
   posterWrapper: { height: height * 0.65, width: '100%' },
   poster: { width: '100%', height: '100%' },
   gradient: { position: 'absolute', bottom: 0, width: '100%', padding: 20, backgroundColor: 'rgba(0,0,0,0.6)' },
@@ -181,5 +89,6 @@ const styles = StyleSheet.create({
   overview: { color: '#ccc', fontSize: 16, lineHeight: 24 },
   controls: { flexDirection: 'row', padding: 20, gap: 15, position: 'absolute', bottom: 30, width: '100%' },
   btnSkip: { flex: 1, backgroundColor: '#333', padding: 18, borderRadius: 30, alignItems: 'center' },
-  btnLike: { flex: 1, backgroundColor: '#e50914', padding: 18, borderRadius: 30, alignItems: 'center' }
+  btnLike: { flex: 1, backgroundColor: '#e50914', padding: 18, borderRadius: 30, alignItems: 'center' },
+  btnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }
 });
